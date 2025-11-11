@@ -217,6 +217,7 @@ func (s *AgentServer) prepareHTTPHandler(serviceHandler service.Service) (http.H
 			s.orgResolver,
 			tlsmiddleware.CertOrgIDExtractor,
 		),
+		tlsmiddleware.UserAgentLogger(s.log),
 		filteredLogger(s.log),
 		addAgentContext,
 		middleware.Recoverer,

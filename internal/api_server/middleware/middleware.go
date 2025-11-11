@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	api "github.com/flightctl/flightctl/api/v1alpha1"
 	"github.com/flightctl/flightctl/internal/auth"
@@ -136,4 +137,25 @@ func extractOrgIDFromRequestCert(r *http.Request) (uuid.UUID, error) {
 		return org.DefaultID, nil
 	}
 	return orgID, nil
+}
+
+// UserAgentLogger logs the User-Agent header from incoming requests
+func UserAgentLogger(log interface {
+	Infof(format string, args ...interface{})
+}) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent := r.Header.Get("User-Agent")
+
+			// Skip logging for health check endpoints and kube-probe to reduce noise
+			isHealthCheck := r.URL.Path == "/healthz" || r.URL.Path == "/readyz"
+			isKubeProbe := strings.HasPrefix(userAgent, "kube-probe")
+
+			if userAgent != "" && !isHealthCheck && !isKubeProbe {
+				log.Infof("User-Agent: %s [%s %s]", userAgent, r.Method, r.URL.Path)
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
